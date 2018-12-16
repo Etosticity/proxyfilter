@@ -15,7 +15,7 @@ import (
 var (
 	mu           sync.Mutex       // Code execution blocker- anti race condition
 	wg           sync.WaitGroup   // Synchronise all goroutines together and wait for them to finish
-	version      = "v1.3.2-alpha" // Semantic Versioning
+	version      = "v1.3.3-alpha" // Semantic Versioning
 	proxyFile    string           // Location to user-provided proxy list
 	proxyOutput  string           // Location to save filtered proxy list
 	proxyTimeout int              // Duration to timeout a proxy
