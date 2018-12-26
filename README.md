@@ -51,6 +51,8 @@ Steps:
 4. Depending on your Operating System, run `./proxyfilter` or `proxyfilter.exe` accordingly
 
 ## Release History
+* v1.3.4-alpha
+  * Simplified command line flags checking
 * v1.3.3-alpha
   * Added README.md
 * v1.3.2-alpha

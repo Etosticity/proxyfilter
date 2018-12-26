@@ -15,7 +15,7 @@ import (
 var (
 	mu           sync.Mutex       // Code execution blocker- anti race condition
 	wg           sync.WaitGroup   // Synchronise all goroutines together and wait for them to finish
-	version      = "v1.3.3-alpha" // Semantic Versioning
+	version      = "v1.3.4-alpha" // Semantic Versioning
 	proxyFile    string           // Location to user-provided proxy list
 	proxyOutput  string           // Location to save filtered proxy list
 	proxyTimeout int              // Duration to timeout a proxy
@@ -116,16 +116,16 @@ func main() {
 	flag.Parse()
 
 	// Check if user input is empty
-	if proxyFile == "" || proxyOutput == "" {
+	if flag.NFlag() < 2 {
 		fmt.Println("ProxyFilter", version)
 		fmt.Println("Filter Bad Or Slow Proxies Out From Big Lists")
 		fmt.Println("Original Code In Python By @godacity_. Ported Over To Golang by @Etosticity.")
 		fmt.Println("Discord: https://discord.gg/4jy8khC")
 		fmt.Println()
-		fmt.Printf("E.g. %s\n", os.Args[0])
+		fmt.Println("E.g.", os.Args[0])
 		flag.PrintDefaults()
 		fmt.Println()
-		fmt.Println("Missing Arguments. Please Check.")
+		fmt.Println("Missing Flags. Please Check.")
 		os.Exit(1)
 	}
 
