@@ -51,6 +51,10 @@ Steps:
 4. Depending on your Operating System, run `./proxyfilter` or `proxyfilter.exe` accordingly
 
 ## Release History
+* v1.4.5-alpha
+  * Fixed issue [issue #1](https://github.com/Etosticity/proxyfilter/issues/1)
+  * Added more documentation
+  * Added a new system resource usage limiter
 * v1.3.4-alpha
   * Simplified command line flags checking
 * v1.3.3-alpha

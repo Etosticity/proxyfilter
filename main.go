@@ -13,18 +13,19 @@ import (
 )
 
 var (
-	mu           sync.Mutex       // Code execution blocker- anti race condition
-	wg           sync.WaitGroup   // Synchronise all goroutines together and wait for them to finish
-	version      = "v1.3.4-alpha" // Semantic Versioning
-	proxyFile    string           // Location to user-provided proxy list
-	proxyOutput  string           // Location to save filtered proxy list
-	proxyTimeout int              // Duration to timeout a proxy
+	mu            sync.Mutex       // Code execution blocker- anti race condition
+	wg            sync.WaitGroup   // Synchronise all goroutines together and wait for them to finish
+	version       = "v1.4.5-alpha" // Semantic Versioning
+	proxyFile     string           // Location to user-provided proxy list
+	proxyOutput   string           // Location to save filtered proxy list
+	proxyTimeout  int              // Duration to timeout a proxy
+	maxGoRoutines int              // Maximum number of GoRoutines allowed
 
 	proxyPassCount int // Counter for good proxies
 	proxyFailCount int // Counter for bad proxies
 )
 
-func appendFile(proxyIP string) {
+func appendFile(goRoutinesGuard *chan struct{}, proxyIP string) {
 	mu.Lock()         // Lock code execution; only allow 1 goroutine at a time to access it
 	defer mu.Unlock() // Upon exiting function, unlock code execution
 
@@ -51,9 +52,11 @@ func appendFile(proxyIP string) {
 		fmt.Fprintln(os.Stderr, err) // Error out if unable to do any file I/O
 		os.Exit(1)                   // Exit program with code 1; error
 	}
+
+	<-*goRoutinesGuard // Empty 1 space for new work to begin
 }
 
-func checkProxy(index int, proxyIP string) {
+func checkProxy(goRoutinesGuard *chan struct{}, proxyIP string) {
 	// Upon exiting function, reduce goroutine counter
 	defer wg.Done()
 
@@ -88,7 +91,8 @@ func checkProxy(index int, proxyIP string) {
 		mu.Lock()        // Lock code execution; only allow 1 goroutine at a time to access it
 		proxyFailCount++ // Increase proxy fail counter
 		mu.Unlock()      // Unlock code execution
-		return           // Exit
+		<-*goRoutinesGuard
+		return // Exit
 	}
 
 	// Upon exiting function, close request if still Keep-Alive'd
@@ -96,11 +100,11 @@ func checkProxy(index int, proxyIP string) {
 
 	// Check if response HTTP Code is equal to 200; RFC 7231, 6.3.1
 	if res.StatusCode == http.StatusOK {
-		appendFile(proxyIP) // Append proxy IP to filtered list
-		mu.Lock()           // Lock code execution; only allow 1 goroutine at a time to access it
-		proxyPassCount++    // Increase proxy pass counter
-		mu.Unlock()         // Unlock code execution
-		return              // Exit
+		appendFile(goRoutinesGuard, proxyIP) // Append proxy IP to filtered list
+		mu.Lock()                            // Lock code execution; only allow 1 goroutine at a time to access it
+		proxyPassCount++                     // Increase proxy pass counter
+		mu.Unlock()                          // Unlock code execution
+		return                               // Exit
 	}
 }
 
@@ -109,6 +113,7 @@ func init() {
 	flag.StringVar(&proxyFile, "file", "", "Proxy list location")
 	flag.StringVar(&proxyOutput, "output", "", "Proxy list output location")
 	flag.IntVar(&proxyTimeout, "timeout", 2000, "Proxy timeout duration")
+	flag.IntVar(&maxGoRoutines, "routines", 1000, "Maximum GoRoutines allowed")
 }
 
 func main() {
@@ -134,6 +139,7 @@ func main() {
 	fmt.Println("Original Code In Python By @godacity_. Ported Over To Golang by @Etosticity.")
 	fmt.Println("Discord: https://discord.gg/4jy8khC")
 	fmt.Println()
+	fmt.Printf("GoRoutines:\t%d\n", maxGoRoutines)
 	fmt.Printf("Proxy File:\t%s\n", proxyFile)
 	fmt.Printf("Proxy Output:\t%s\n", proxyOutput)
 	fmt.Printf("Proxy Timeout:\t%dms\n", proxyTimeout)
@@ -147,10 +153,17 @@ func main() {
 		os.Exit(1)                   // Exit program with code 1; error
 	}
 
+	// Create a system resource limiter / guard based on empty structs
+	goRoutinesGuard := make(chan struct{}, maxGoRoutines)
+
+	// Cleanly shutdown system resource limiter / guard channel
+	defer close(goRoutinesGuard)
+
 	// Iterate through all proxies separated by a LF (Line Feed) manner
-	for i, proxy := range strings.Split(string(bytes), "\n") {
+	for _, proxy := range strings.Split(string(bytes), "\n") {
+		goRoutinesGuard <- struct{}{} // Add 1 job to the guard channel
 		wg.Add(1)
-		go checkProxy(i, proxy)
+		go checkProxy(&goRoutinesGuard, proxy)
 	}
 
 	// Wait for all goroutines to finish; code blocking
